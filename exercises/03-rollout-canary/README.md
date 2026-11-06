@@ -52,7 +52,9 @@ weight, and which ReplicaSet is `stable` or `canary`:
 
 ```bash
 kubectl argo rollouts get rollout rollouts-demo -n rollouts-lab --watch
-# or the web version: kubectl argo rollouts dashboard   ->  http://localhost:3100
+# or the web version: kubectl argo rollouts dashboard -n rollouts-lab   ->  http://localhost:3100
+#   (without -n it opens on "default" and stays on "Loading..."; you can also type
+#    rollouts-lab in the NAMESPACE box at the top right)
 ```
 
 **Traffic, request by request:** this shows which version answers real requests:

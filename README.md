@@ -36,6 +36,10 @@ for how contexts work. The scripts refuse to run on any other context.
 
 ## Setup (once, about 3 minutes)
 
+New to minikube? Read [docs/minikube.md](docs/minikube.md) first: what the
+cluster is, how to start, stop and delete it, how to reach apps in it, and
+troubleshooting.
+
 ```bash
 ./setup/install.sh
 ```
@@ -153,7 +157,7 @@ Notes:
 | The ReplicaSets per version | `kubectl get rs -n <ns> -L rollouts-pod-template-hash` | |
 | Change the image | edit YAML + `kubectl apply -f` | `kubectl argo rollouts set image <name> <container>=<image> -n <ns>` |
 | Continue / go back to stable | | `kubectl argo rollouts promote <name> -n <ns>` / `abort <name> -n <ns>` |
-| Web dashboard | | `kubectl argo rollouts dashboard` → <http://localhost:3100> |
+| Web dashboard | | `kubectl argo rollouts dashboard -n rollouts-lab` → <http://localhost:3100> |
 
 Example (the plugin adds `STATUS`, `STEP` and `SET-WEIGHT`, which tell you how far a release has gone):
 
@@ -169,9 +173,13 @@ rollouts-lab  rollouts-demo  Canary     Healthy  4/4   100         5/5    5     
 
 ### UIs
 
+> The Rollouts dashboard opens on the `default` namespace and stays on
+> **Loading...** when that namespace has no rollouts. Pass `-n rollouts-lab`, or
+> type the namespace in the NAMESPACE box at the top right.
+
 ```bash
 kubectl -n argo port-forward svc/argo-server 2746:2746   # Workflows UI: https://localhost:2746
-kubectl argo rollouts dashboard                          # Rollouts UI:  http://localhost:3100
+kubectl argo rollouts dashboard -n rollouts-lab          # Rollouts UI:  http://localhost:3100
 ```
 
 These commands work the same on any cluster that runs Argo (for example a
@@ -191,7 +199,7 @@ load-testing or CI platform built on Argo Workflows). Only the namespace and
 .githooks/    pre-commit, blocks commits of your answers
 setup/        install.sh, teardown.sh
 scripts/      lib.sh, shared helpers for the check scripts
-docs/         concepts.md, the 5-minute mental model
+docs/         concepts.md (the 5-minute mental model), minikube.md (running the cluster)
 exercises/    the three exercises (README + YAML with TODOs + check.sh)
 solutions/    completed YAML for each exercise
 ```

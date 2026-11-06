@@ -70,6 +70,6 @@ cat <<'EOF'
 Handy UIs (run each in its own terminal):
   Argo Workflows UI : kubectl -n argo port-forward svc/argo-server 2746:2746
                       then open https://localhost:2746  (accept the self-signed cert)
-  Argo Rollouts UI  : kubectl argo rollouts dashboard
+  Argo Rollouts UI  : kubectl argo rollouts dashboard -n rollouts-lab
                       then open http://localhost:3100
 EOF
