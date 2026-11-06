@@ -11,6 +11,15 @@ if [[ "${1:-}" == "--all" ]]; then
   exit 0
 fi
 
+# Safety net: only ever delete things from the local minikube cluster.
+EXPECTED="${KUBE_CONTEXT:-minikube}"
+CURRENT=$(kubectl config current-context 2>/dev/null || true)
+if [[ "$CURRENT" != "$EXPECTED" ]]; then
+  echo "Refusing to run: current kubectl context is '$CURRENT', expected '$EXPECTED'."
+  echo "Switch with:  kubectl config use-context $EXPECTED"
+  exit 1
+fi
+
 echo "Deleting exercise workflows (namespace argo)..."
 kubectl -n argo delete workflows -l learning=minikube-argo-experiments --ignore-not-found
 

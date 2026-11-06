@@ -47,12 +47,13 @@ spec:
 
         - - name: say-goodbye            # group 2 (runs after say-hello)
             template: print-message
-            # TODO: The print-message template REQUIRES an input parameter
-            #       called "message", but this step does not pass one.
-            #       Submit the workflow as-is first and read the error, then
-            #       add an "arguments" block (copy the shape of say-hello)
-            #       whose message is:  Goodbye, <name>!
-            #       using the same workflow parameter as above.
+            arguments:
+              parameters:
+                - name: message
+                  # {{workflow.parameters.name}} is replaced by Argo before
+                  # the pod starts. This is the "templating" syntax.
+                  value: "Goodbye, {{workflow.parameters.name}}!"
+
 
     # ------------------------------------------------------------------
     # Template 2: "print-message" is a CONTAINER template. It is reusable,

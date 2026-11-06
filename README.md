@@ -25,6 +25,15 @@ brew install argoproj/tap/kubectl-argo-rollouts   # Rollouts kubectl plugin (nee
 
 Docker Desktop must be running. The cluster uses 4 CPUs and 6 GB of RAM.
 
+## Make sure kubectl points at minikube
+
+```bash
+kubectl config use-context minikube && kubectl get nodes   # one node: "minikube"
+```
+
+See [exercise 01, step 0](exercises/01-workflow-steps-and-parameters/README.md#0-point-kubectl-at-minikube-do-this-first-every-new-terminal)
+for how contexts work. The scripts refuse to run on any other context.
+
 ## Setup (once, about 3 minutes)
 
 ```bash

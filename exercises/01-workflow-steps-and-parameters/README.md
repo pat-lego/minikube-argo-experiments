@@ -26,6 +26,63 @@ the Workflow's `status`.
 
 ## Steps
 
+### 0. Point kubectl at minikube (do this first, every new terminal)
+
+`kubectl` does not "know" about minikube by itself. It reads a config file
+(`~/.kube/config`, the *kubeconfig*) that can hold many clusters, and it sends
+every command to the **current context**.
+
+| Word | Meaning | For this project |
+|------|---------|------------------|
+| **cluster** | An API server address plus its certificate | `minikube` (for example `https://127.0.0.1:59118`) |
+| **user** (authinfo) | The credentials used to talk to it | `minikube` |
+| **context** | A named pair: cluster + user (+ default namespace) | **`minikube`** ◄── the one you select |
+
+`minikube start` creates all three entries, named after the **minikube profile**
+(the default profile is `minikube`). It also switches your current context to
+it. If you later switch to another cluster, you have to switch back yourself.
+
+```bash
+# Which context am I on right now?
+kubectl config current-context            # expect: minikube
+
+# List all contexts. The * marks the current one.
+kubectl config get-contexts
+
+# Switch to minikube
+kubectl config use-context minikube
+
+# Prove it: you should see ONE node called "minikube"
+kubectl get nodes
+# NAME       STATUS   ROLES           AGE   VERSION
+# minikube   Ready    control-plane   ...   v1.35.x
+```
+
+Useful variants:
+
+```bash
+# Run one command against minikube WITHOUT changing the current context
+kubectl --context minikube get pods -n argo
+
+# Optional: make "argo" the default namespace of the minikube context,
+# so you can skip "-n argo" in exercises 01 and 02
+kubectl config set-context minikube --namespace=argo
+
+# Context missing or broken (e.g. after "minikube delete")? Re-create it:
+minikube start                     # creates/starts the cluster and the context
+minikube update-context            # only rewrites the kubeconfig entry (new IP or port)
+
+# Several minikube clusters? Each profile has its own context name:
+minikube profile list              # PROFILE column = context name
+```
+
+> ⚠️ **Why this matters:** if your kubeconfig also holds work clusters, every
+> `kubectl create`/`apply`/`delete` in these exercises goes to **whatever context
+> is current**. Always run `kubectl config current-context` before you start.
+> As a safety net, the `check.sh` scripts and `setup/teardown.sh` refuse to run
+> unless the current context is `minikube` (to use another minikube profile,
+> set `KUBE_CONTEXT=<profile>`).
+
 ### 1. Read `workflow.yaml`
 
 Read it from top to bottom. Every line has a comment. Find the `TODO`.

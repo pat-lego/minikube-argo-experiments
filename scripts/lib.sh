@@ -7,6 +7,13 @@ info() { printf "\033[36m  ....  %s\033[0m\n" "$*"; }
 hint() { printf "\033[33m  HINT  %s\033[0m\n" "$*"; }
 
 require_cluster() {
+  # Safety net: never run exercise commands against a real (work) cluster.
+  local expected="${KUBE_CONTEXT:-minikube}" current
+  current=$(kubectl config current-context 2>/dev/null || true)
+  [[ "$current" == "$expected" ]] || {
+    hint "Switch with:  kubectl config use-context $expected"
+    fail "Current kubectl context is '$current', expected '$expected'."
+  }
   kubectl cluster-info >/dev/null 2>&1 \
     || fail "Cannot reach the cluster. Run ./setup/install.sh first."
 }
