@@ -182,7 +182,7 @@ kubectl delete -f rollout.yaml
 # 2. Put the starting image back in rollout.yaml:   image: argoproj/rollouts-demo:blue
 
 # 3. Wait until the old Pods are gone (they show Terminating for a few seconds)
-kubectl get pods -n rollouts-lab        # "No resources found" = clean
+kubectl get pods -n rollouts-lab -l app=rollouts-demo   # "No resources found" = clean
 
 # 4. Deploy it fresh
 kubectl apply -f rollout.yaml
@@ -195,6 +195,9 @@ kubectl argo rollouts get rollout rollouts-demo -n rollouts-lab
 | History | revision 2 (canary) + revision 1 (stable) | **revision 1** only |
 | Pods | old and new versions mixed | 5 Pods, all running the image in the file |
 
+- `kubectl delete -f rollout.yaml` only deletes what is in that file. A running
+  `watch-traffic.sh` keeps going and shows `error` until the Service is back
+  after step 4; that is expected.
 - **Why step 2 matters:** a first deploy runs the file's image directly, with no
   canary. If the file still says `yellow`, the "new" rollout starts as yellow,
   and setting yellow again changes nothing. Go back to `blue`, and step 3

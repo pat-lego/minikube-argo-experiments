@@ -12,15 +12,28 @@
 # Separate requests through the Service are spread across all pods by
 # kube-proxy, so this shows what users would really get.
 #
-# Ctrl+C to stop (the helper pod is removed automatically).
+# Ctrl+C to stop. The helper pod is deleted on exit, even after Ctrl+C or a
+# closed terminal. Each run uses its own pod name, so two terminals can watch
+# at the same time. Leftovers (if any): ../../setup/teardown.sh
 set -euo pipefail
 cd "$(dirname "$0")"
 source ../../scripts/lib.sh
 require_cluster
 
+POD="traffic-watcher-$$"   # unique per run ($$ = this script's process id)
+
+# kubectl run --rm only cleans up when the session ends normally. Ctrl+C or a
+# closed terminal kills kubectl first, so delete the pod ourselves on any exit.
+cleanup() {
+  trap - EXIT INT TERM HUP
+  kubectl -n rollouts-lab delete pod "$POD" --ignore-not-found --grace-period=1 --wait=false >/dev/null 2>&1 || true
+}
+trap cleanup EXIT
+trap 'cleanup; exit 130' INT TERM HUP
+
 echo "Watching http://rollouts-demo/color in namespace rollouts-lab (Ctrl+C to stop)..."
-exec kubectl -n rollouts-lab run traffic-watcher --rm -i --quiet --restart=Never \
-  --image=busybox:1.36 --labels=learning=minikube-argo-experiments -- sh -c '
+kubectl -n rollouts-lab run "$POD" -i --quiet --restart=Never \
+  --image=busybox:1.36 --labels=learning=minikube-argo-experiments,app=traffic-watcher -- sh -c '
 while true; do
   results=""
   for i in $(seq 20); do

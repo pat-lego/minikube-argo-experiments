@@ -23,7 +23,7 @@ fi
 echo "Deleting exercise workflows (namespace argo)..."
 kubectl -n argo delete workflows -l learning=minikube-argo-experiments --ignore-not-found
 
-echo "Deleting exercise 03 rollout (namespace rollouts-lab)..."
-kubectl -n rollouts-lab delete rollout,service -l learning=minikube-argo-experiments --ignore-not-found
+echo "Deleting exercise 03 rollout and helper pods (namespace rollouts-lab)..."
+kubectl -n rollouts-lab delete rollout,service,pod -l learning=minikube-argo-experiments --ignore-not-found
 
 echo "Done. Argo Workflows and Argo Rollouts are still installed."
