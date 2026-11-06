@@ -158,6 +158,7 @@ Notes:
 | Change the image | edit YAML + `kubectl apply -f` | `kubectl argo rollouts set image <name> <container>=<image> -n <ns>` |
 | Continue / go back to stable | | `kubectl argo rollouts promote <name> -n <ns>` / `abort <name> -n <ns>` |
 | Web dashboard | | `kubectl argo rollouts dashboard -n rollouts-lab` → <http://localhost:3100> |
+| Start over as if brand new | `kubectl delete -f rollout.yaml`, then `kubectl apply -f rollout.yaml` ([details](exercises/03-rollout-canary/README.md#start-over-make-the-rollout-brand-new)) | |
 
 Example (the plugin adds `STATUS`, `STEP` and `SET-WEIGHT`, which tell you how far a release has gone):
 

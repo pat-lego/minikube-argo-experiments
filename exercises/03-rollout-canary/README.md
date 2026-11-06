@@ -168,6 +168,50 @@ The check reads the Rollout from the cluster. It does not change anything.
 - **promote** = "looks good, continue"; **abort** = "go back to stable now".
 - After an abort, the Rollout is `Degraded` until the spec matches a good version again.
 
+## Start over (make the rollout brand new)
+
+Deleting the Rollout also deletes its ReplicaSets and Pods (Kubernetes cleans up
+everything the Rollout owns). The release history is gone, so the next `apply`
+counts as a **first deploy** again: revision 1, canary steps skipped, `Healthy`
+right away.
+
+```bash
+# 1. Delete the Rollout and the Service
+kubectl delete -f rollout.yaml
+
+# 2. Put the starting image back in rollout.yaml:   image: argoproj/rollouts-demo:blue
+
+# 3. Wait until the old Pods are gone (they show Terminating for a few seconds)
+kubectl get pods -n rollouts-lab        # "No resources found" = clean
+
+# 4. Deploy it fresh
+kubectl apply -f rollout.yaml
+kubectl argo rollouts get rollout rollouts-demo -n rollouts-lab
+```
+
+| | Before the reset | After the reset |
+|---|---|---|
+| Status | for example `॥ Paused` mid-canary | `✔ Healthy` |
+| History | revision 2 (canary) + revision 1 (stable) | **revision 1** only |
+| Pods | old and new versions mixed | 5 Pods, all running the image in the file |
+
+- **Why step 2 matters:** a first deploy runs the file's image directly, with no
+  canary. If the file still says `yellow`, the "new" rollout starts as yellow,
+  and setting yellow again changes nothing. Go back to `blue`, and step 3
+  (blue → yellow) works exactly like the first time.
+- **Want the file to be new too?** `git restore rollout.yaml` resets it to the
+  original exercise. That also removes your `pause: {}` answer, so you redo the TODO.
+- `./check.sh` needs at least revision 2, so it fails right after a reset until
+  you release yellow again. That is expected.
+
+These do **not** reset it:
+
+| Command | What it does instead |
+|---------|----------------------|
+| `kubectl argo rollouts abort` | Goes back to the stable version; the history stays |
+| `kubectl argo rollouts undo` | Rolls out the previous version as a **new** revision (the number keeps going up) |
+| `kubectl argo rollouts restart` | Replaces the Pods one by one; same version, same history |
+
 ## Clean up
 
 ```bash
