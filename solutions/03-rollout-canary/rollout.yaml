@@ -1,0 +1,70 @@
+# Exercise 03 - Canary release with Argo Rollouts
+#
+# A Rollout replaces a Deployment. The Pod template is the same; the
+# difference is the "strategy" section. Instead of swapping every Pod at once,
+# the argo-rollouts controller moves to the new version step by step, and can
+# PAUSE so a human (or an automated analysis) can decide whether to continue.
+#
+# There is ONE TODO in strategy.canary.steps.
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: rollouts-demo
+  namespace: rollouts-lab
+  labels:
+    learning: minikube-argo-experiments
+spec:
+  replicas: 5
+  revisionHistoryLimit: 2
+  selector:
+    matchLabels:
+      app: rollouts-demo
+  # ---- Same Pod template as a normal Deployment ----------------------------
+  template:
+    metadata:
+      labels:
+        app: rollouts-demo
+    spec:
+      containers:
+        - name: rollouts-demo
+          # A demo web app from the Argo project. The tag is a color:
+          # blue, yellow, green, red, purple, orange. It shows a grid that is
+          # painted with the color of whichever version answers each request.
+          image: argoproj/rollouts-demo:blue
+          ports:
+            - name: http
+              containerPort: 8080
+          resources:
+            requests:
+              cpu: 5m
+              memory: 32Mi
+  # ---- What makes it a Rollout ---------------------------------------------
+  strategy:
+    canary:
+      # Steps run in order every time the Pod template changes (for example,
+      # a new image). With no traffic router (Istio, NGINX, ...), "setWeight"
+      # is done by scaling Pods: 20% of 5 replicas = 1 new Pod, 4 old Pods.
+      steps:
+        - setWeight: 20
+        # SOLUTION: an empty pause waits until "kubectl argo rollouts promote".
+        - pause: {}
+        - setWeight: 60
+        - pause: {duration: 10s}   # timed pause: continues by itself
+        # After the last step the rollout automatically goes to 100%.
+---
+# A normal Service. It selects Pods by label, so it sends traffic to old AND
+# new Pods. That is what gives the "percentage" in this simple setup.
+apiVersion: v1
+kind: Service
+metadata:
+  name: rollouts-demo
+  namespace: rollouts-lab
+  labels:
+    learning: minikube-argo-experiments
+spec:
+  selector:
+    app: rollouts-demo
+  ports:
+    - name: http
+      port: 80
+      targetPort: http

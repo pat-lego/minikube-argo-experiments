@@ -1,0 +1,114 @@
+# Exercise 02 - A CI-style pipeline as a DAG
+#
+#                ┌──► unit-test ──┐
+#    build ──────┤                ├──► deploy
+#                └──► lint ───────┘
+#
+# A DAG (directed acyclic graph) template lists TASKS and the DEPENDENCIES
+# between them. Argo runs every task whose dependencies are done, as early as
+# possible. That is why unit-test and lint run at the same time.
+#
+# There are TWO TODOs, both on the "deploy" task.
+apiVersion: argoproj.io/v1alpha1
+kind: Workflow
+metadata:
+  generateName: ci-pipeline-
+  labels:
+    learning: minikube-argo-experiments
+    exercise: "02"
+spec:
+  entrypoint: pipeline
+  templates:
+    # ------------------------------------------------------------------
+    # The DAG: only wiring, no containers.
+    # ------------------------------------------------------------------
+    - name: pipeline
+      dag:
+        tasks:
+          - name: build
+            template: build              # no "depends" -> starts immediately
+
+          - name: unit-test
+            template: run-check
+            depends: build               # waits for build to SUCCEED
+            arguments:
+              parameters:
+                - name: check
+                  value: unit-tests
+
+          - name: lint
+            template: run-check
+            depends: build
+            arguments:
+              parameters:
+                - name: check
+                  value: lint
+
+          - name: deploy
+            template: deploy
+            # TODO 1: deploy must wait for BOTH unit-test AND lint to succeed.
+            #         Add a "depends" line. Combine task names with &&,
+            #         e.g.  depends: "a && b"
+            arguments:
+              parameters:
+                - name: version
+                  # TODO 2: deploy needs the version that the build task produced.
+                  #         Replace "TODO" with a reference to the build task's
+                  #         output parameter. The syntax is:
+                  #           {{tasks.<task-name>.outputs.parameters.<param-name>}}
+                  value: "TODO"
+
+    # ------------------------------------------------------------------
+    # build: "compiles" the app and writes a version to a file.
+    # outputs.parameters.valueFrom.path tells Argo to read that file after
+    # the container exits and expose it as an OUTPUT PARAMETER.
+    # ------------------------------------------------------------------
+    - name: build
+      container:
+        image: busybox:1.36
+        command: [sh, -c]
+        args:
+          - |
+            echo "Compiling..."
+            sleep 2
+            VERSION="v1.0.$(date +%s)"
+            echo -n "$VERSION" > /tmp/version.txt
+            echo "Built $VERSION"
+      outputs:
+        parameters:
+          - name: version
+            valueFrom:
+              path: /tmp/version.txt
+
+    # ------------------------------------------------------------------
+    # run-check: one reusable template, used twice (unit-test and lint).
+    # ------------------------------------------------------------------
+    - name: run-check
+      inputs:
+        parameters:
+          - name: check
+      container:
+        image: busybox:1.36
+        command: [sh, -c]
+        args:
+          - |
+            echo "Running {{inputs.parameters.check}}..."
+            sleep 8
+            echo "{{inputs.parameters.check}} passed"
+
+    # ------------------------------------------------------------------
+    # deploy: refuses to deploy anything that is not a real version.
+    # ------------------------------------------------------------------
+    - name: deploy
+      inputs:
+        parameters:
+          - name: version
+      container:
+        image: busybox:1.36
+        command: [sh, -c]
+        args:
+          - |
+            case "{{inputs.parameters.version}}" in
+              v1.*) echo "Deploying {{inputs.parameters.version}} to production" ;;
+              *)    echo "ERROR: refusing to deploy invalid version '{{inputs.parameters.version}}'"; exit 1 ;;
+            esac

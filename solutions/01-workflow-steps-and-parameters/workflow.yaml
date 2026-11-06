@@ -1,0 +1,67 @@
+# Exercise 01 - Your first Argo Workflow: steps + parameters
+#
+# A Workflow is a Kubernetes object (kind: Workflow). When you create it, the
+# Argo "workflow-controller" reads it and starts one Pod per step.
+#
+# Read top to bottom. The comments explain every piece.
+# There is ONE TODO for you near the bottom of the "main" template.
+apiVersion: argoproj.io/v1alpha1
+kind: Workflow
+metadata:
+  # generateName (instead of name) lets you submit the same file many times:
+  # Argo adds a random suffix -> hello-steps-x7k2p, hello-steps-9qzr4, ...
+  generateName: hello-steps-
+  labels:
+    learning: minikube-argo-experiments
+    exercise: "01"
+spec:
+  # The template Argo runs first. Think of it as "main()".
+  entrypoint: main
+
+  # Workflow-level parameters: inputs for the whole run.
+  # Override at submit time:  argo submit ... -p name=Pat
+  arguments:
+    parameters:
+      - name: name
+        value: "Argo learner"
+
+  templates:
+    # ------------------------------------------------------------------
+    # Template 1: "main" is a STEPS template. It only orchestrates; it does
+    # not run a container itself.
+    #
+    # The double dash "- -" matters:
+    #   - the OUTER list = sequential groups (group 1 runs, then group 2, ...)
+    #   - the INNER list = steps that run IN PARALLEL inside one group
+    # ------------------------------------------------------------------
+    - name: main
+      steps:
+        - - name: say-hello              # group 1
+            template: print-message      # which template to run for this step
+            arguments:
+              parameters:
+                - name: message
+                  # {{workflow.parameters.name}} is replaced by Argo before
+                  # the pod starts. This is the "templating" syntax.
+                  value: "Hello, {{workflow.parameters.name}}!"
+
+        - - name: say-goodbye            # group 2 (runs after say-hello)
+            template: print-message
+            # SOLUTION: pass the required "message" input, same shape as say-hello.
+            arguments:
+              parameters:
+                - name: message
+                  value: "Goodbye, {{workflow.parameters.name}}!"
+
+    # ------------------------------------------------------------------
+    # Template 2: "print-message" is a CONTAINER template. It is reusable,
+    # like a function: it declares its inputs and runs one container.
+    # ------------------------------------------------------------------
+    - name: print-message
+      inputs:
+        parameters:
+          - name: message                # required: no default value
+      container:
+        image: busybox:1.36
+        command: [echo]
+        args: ["{{inputs.parameters.message}}"]
