@@ -35,9 +35,6 @@ image changes to :yellow
 
 ## Steps
 
-> Tip: keep a second terminal open with the live view:
-> `kubectl argo rollouts get rollout rollouts-demo -n rollouts-lab --watch`
-
 ### 1. Fix the TODO in `rollout.yaml` and apply it
 
 ```bash
@@ -48,28 +45,63 @@ kubectl argo rollouts get rollout rollouts-demo -n rollouts-lab
 The **first** deploy skips the steps (there is no old version to compare with),
 so all 5 Pods start as `blue` and the status is `✔ Healthy`.
 
-### 2. (Recommended) Open the visual demo
+### 2. Open the two live views (each in its own terminal)
+
+**Progress, step by step:** the rollouts plugin shows the current step, the
+weight, and which ReplicaSet is `stable` or `canary`:
 
 ```bash
-kubectl -n rollouts-lab port-forward svc/rollouts-demo 8080:80
+kubectl argo rollouts get rollout rollouts-demo -n rollouts-lab --watch
+# or the web version: kubectl argo rollouts dashboard   ->  http://localhost:3100
 ```
 
-Open <http://localhost:8080>. Each square is a request, painted with the color of
-the Pod that answered it. Keep it open during step 3.
+**Traffic, request by request:** this shows which version answers real requests:
 
-You can also open the Rollouts dashboard: `kubectl argo rollouts dashboard`, then
-<http://localhost:3100>.
+```bash
+./watch-traffic.sh
+```
+
+```
+01:27:12  blue    #################    17
+          yellow  ###                   3
+```
+
+Every second it sends 20 separate requests to the `rollouts-demo` Service from
+inside the cluster and counts the colors that answer. Leave it running during
+steps 3 and 4.
+
+> **Why not open the demo page in a browser?** The app has a web page with a
+> colored grid, but on this setup it always shows **one** color:
+> - `kubectl port-forward svc/rollouts-demo` picks **one pod** behind the
+>   Service and sends every request to it. There is no load balancing.
+> - Even with a real Service URL (`minikube service`), the browser reuses a few
+>   open connections, and each open connection stays on one pod.
+>
+> The grid only shows the split behind an HTTP load balancer such as an
+> Ingress. That is also why production canaries use a traffic router (Istio,
+> NGINX, ALB): it splits per **request**, not per connection or per pod.
 
 ### 3. Release a new version (yellow) and promote it
 
+Change the image, in either of two ways:
+
 ```bash
+# A) Declarative (how real teams do it, usually through Git): edit rollout.yaml
+#    image: argoproj/rollouts-demo:yellow
+kubectl apply -f rollout.yaml
+#    -> rollout.argoproj.io/rollouts-demo configured   (the Rollout changed)
+#    -> service/rollouts-demo unchanged                (the Service in the same file did not)
+
+# B) Imperative (quick, but rollout.yaml no longer matches the cluster)
 kubectl argo rollouts set image rollouts-demo -n rollouts-lab \
   rollouts-demo=argoproj/rollouts-demo:yellow
 ```
 
+If you use A, keep using it in step 4 too (edit the image, then apply).
+
 Watch the live view. The rollout reaches `SetWeight: 20` and then shows
-**`॥ Paused`**: one yellow Pod (`canary`) and four blue Pods (`stable`). About 1 in 5
-squares in the demo turns yellow.
+**`॥ Paused`**: one yellow Pod (`canary`) and four blue Pods (`stable`). In
+`watch-traffic.sh`, about 4 of every 20 requests are yellow.
 
 This is the moment where, in real life, you check dashboards and error rates.
 It looks good, so continue:
@@ -90,8 +122,8 @@ kubectl argo rollouts set image rollouts-demo -n rollouts-lab \
   rollouts-demo=argoproj/rollouts-demo:bad-red
 ```
 
-It stops at 20% again. In the demo, some squares turn red or show errors. Do not
-promote it. Abort instead:
+It stops at 20% again. In `watch-traffic.sh`, a few requests now come back `red`
+or `error`. Do not promote it. Abort instead:
 
 ```bash
 kubectl argo rollouts abort rollouts-demo -n rollouts-lab
