@@ -25,6 +25,13 @@ command -v kubectl-argo-rollouts >/dev/null \
 
 docker info >/dev/null 2>&1 || die "Docker is not running. Start Docker Desktop first."
 
+# --- 1b. Git hook: never commit answers in the exercise files ------------------
+REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+if git -C "$REPO_ROOT" rev-parse >/dev/null 2>&1; then
+  git -C "$REPO_ROOT" config core.hooksPath .githooks
+  say "Enabled git hook: commits that change exercises/*/{workflow,rollout}.yaml are blocked"
+fi
+
 # --- 2. Cluster ---------------------------------------------------------------
 if minikube status >/dev/null 2>&1; then
   say "minikube is already running"

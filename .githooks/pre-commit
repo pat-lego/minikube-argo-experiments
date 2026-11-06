@@ -1,0 +1,33 @@
+#!/bin/sh
+# Blocks commits that change the exercise starter files, so your answers
+# (the filled-in TODOs) never end up in the repository by accident.
+#
+# Protected:  exercises/<any>/workflow.yaml
+#             exercises/<any>/rollout.yaml
+#
+# Intentional change to a starter file (e.g. improving the exercise)?
+#   ALLOW_EXERCISE_EDITS=1 git commit ...
+#
+# Enabled by: git config core.hooksPath .githooks   (setup/install.sh does it)
+
+[ "${ALLOW_EXERCISE_EDITS:-0}" = "1" ] && exit 0
+
+blocked=$(git diff --cached --name-only --diff-filter=ACMRD \
+  | grep -E '^exercises/[^/]+/(workflow|rollout)\.yaml$')
+
+[ -z "$blocked" ] && exit 0
+
+echo "✋ Commit blocked: these exercise starter files contain your answers:" >&2
+echo "$blocked" | sed 's/^/     /' >&2
+cat >&2 <<'EOF'
+
+   Keep your work locally, just don't commit it. Unstage the files with:
+     git restore --staged <file>
+
+   Want a clean copy of the exercise again?
+     git restore <file>
+
+   Really meant to change the exercise itself?
+     ALLOW_EXERCISE_EDITS=1 git commit ...
+EOF
+exit 1

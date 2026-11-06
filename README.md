@@ -60,6 +60,21 @@ read README  →  read the YAML  →  run it unchanged (see it fail)  →  fill 
 - Stuck? Answers are in [`solutions/`](solutions/README.md). Try first, then compare.
 - Each check uses `kubectl` only. The `argo` CLI is optional but nicer to use.
 
+## Your answers stay local (git hook)
+
+A pre-commit hook in `.githooks/` **blocks any commit that changes**
+`exercises/*/workflow.yaml` or `exercises/*/rollout.yaml`, so you never push
+your answers by accident. `setup/install.sh` enables it. To enable it by hand:
+
+```bash
+git config core.hooksPath .githooks
+```
+
+- Edit the exercise files freely; just don't commit them. To unstage one: `git restore --staged <file>`
+- Start an exercise over: `git restore exercises/01-workflow-steps-and-parameters/workflow.yaml`
+- Intentionally changing an exercise: `ALLOW_EXERCISE_EDITS=1 git commit ...`
+- The hook is local: `git commit --no-verify` skips it, and GitHub does not enforce it.
+
 ## Handy commands
 
 ```bash
@@ -84,6 +99,7 @@ kubectl argo rollouts dashboard           # UI at http://localhost:3100
 ## Repository layout
 
 ```
+.githooks/    pre-commit, blocks commits of your answers
 setup/        install.sh, teardown.sh
 scripts/      lib.sh, shared helpers for the check scripts
 docs/         concepts.md, the 5-minute mental model
