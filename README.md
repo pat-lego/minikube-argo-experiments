@@ -75,19 +75,108 @@ git config core.hooksPath .githooks
 - Intentionally changing an exercise: `ALLOW_EXERCISE_EDITS=1 git commit ...`
 - The hook is local: `git commit --no-verify` skips it, and GitHub does not enforce it.
 
-## Handy commands
+## Command cheat sheet
+
+Argo adds new resource types to Kubernetes, so plain `kubectl` works on them
+just like on pods. The Argo CLIs add views that are easier to read.
+
+### Find the Argo resource types (and their short names)
 
 ```bash
-# Argo Workflows
-argo list -n argo                         # list workflows
-argo get -n argo @latest                  # tree view of the latest workflow
-argo logs -n argo @latest                 # logs of all its steps
-kubectl -n argo port-forward svc/argo-server 2746:2746   # UI at https://localhost:2746
-
-# Argo Rollouts
-kubectl argo rollouts get rollout rollouts-demo -n rollouts-lab --watch
-kubectl argo rollouts dashboard           # UI at http://localhost:3100
+kubectl api-resources --api-group=argoproj.io
 ```
+
+```
+NAME                SHORTNAMES      KIND
+workflows           wf              Workflow
+workflowtemplates   wftmpl          WorkflowTemplate
+cronworkflows       cwf,cronwf      CronWorkflow
+rollouts            ro              Rollout
+analysistemplates   at              AnalysisTemplate
+analysisruns        ar              AnalysisRun
+...
+```
+
+### Argo Workflows
+
+| Goal | kubectl | argo CLI (`brew install argo`) |
+|------|---------|--------------------------------|
+| List workflows in a namespace | `kubectl get wf -n argo` | `argo list -n argo` |
+| List in all namespaces | `kubectl get wf -A` | `argo list -A` |
+| Only failed ones | `kubectl get wf -n argo -l workflows.argoproj.io/phase=Failed` | `argo list -n argo --status Failed` |
+| Only running ones | `kubectl get wf -n argo -l workflows.argoproj.io/phase=Running` | `argo list -n argo --running` |
+| Filter by your own label | `kubectl get wf -n argo -l exercise=02` | `argo list -n argo -l exercise=02` |
+| Newest last | `kubectl get wf -n argo --sort-by=.metadata.creationTimestamp` | (already newest first) |
+| Watch for changes | `kubectl get wf -n argo -w` | `argo watch -n argo @latest` |
+| Step tree + failure messages | `kubectl get wf -n argo <name> -o yaml` (see `status.nodes`) | `argo get -n argo <name>` (or `@latest`) |
+| Logs of every step | `kubectl logs -n argo -l workflows.argoproj.io/workflow=<name> -c main --prefix` | `argo logs -n argo <name>` |
+| The pods behind a workflow | `kubectl get pods -n argo -l workflows.argoproj.io/workflow=<name>` | |
+| Reusable / scheduled workflows | `kubectl get wftmpl,cwf -n argo` | `argo template list`, `argo cron list` |
+| Delete a workflow | `kubectl delete wf -n argo <name>` | `argo delete -n argo <name>` |
+
+Example (`argo list` adds duration and a cleaner status):
+
+```
+NAME                STATUS      AGE   DURATION   PRIORITY   MESSAGE
+ci-pipeline-bjpsg   Failed      23m   30s        0
+ci-pipeline-8l99b   Succeeded   25m   40s        0
+```
+
+`argo get` shows which step failed and why:
+
+```
+STEP                  TEMPLATE   PODNAME                                 DURATION  MESSAGE
+ ✖ ci-pipeline-bjpsg  pipeline
+ ├─✔ build            build      ci-pipeline-bjpsg-build-4047544995      5s
+ ├─✖ lint             run-check  ci-pipeline-bjpsg-run-check-2823916388  3s        main: Error (exit code 1)
+ ├─✔ unit-test        run-check  ci-pipeline-bjpsg-run-check-497967494   10s
+```
+
+Notes:
+
+- `kubectl get wf --field-selector status.phase=Failed` does **not** work (the
+  API server can't filter custom resources by status). Use the
+  `workflows.argoproj.io/phase` label instead; the controller keeps it up to date.
+- `kubectl logs` also prints Argo's own helper lines (`... argo=true`). Add
+  `| grep -v 'argo=true'` to hide them, or use `argo logs`.
+
+### Argo Rollouts
+
+| Goal | kubectl | rollouts plugin (`kubectl argo rollouts ...`) |
+|------|---------|-----------------------------------------------|
+| List rollouts in a namespace | `kubectl get ro -n rollouts-lab` | `kubectl argo rollouts list rollouts -n rollouts-lab` |
+| List in all namespaces | `kubectl get ro -A` | `kubectl argo rollouts list rollouts -A` |
+| Live view: step, weight, stable/canary | | `kubectl argo rollouts get rollout <name> -n <ns> --watch` |
+| Wait until done (scripts) | | `kubectl argo rollouts status <name> -n <ns> --timeout 120s` |
+| Full spec + status | `kubectl get ro <name> -n <ns> -o yaml` | |
+| Events / why it is stuck | `kubectl describe ro <name> -n <ns>` | |
+| The ReplicaSets per version | `kubectl get rs -n <ns> -L rollouts-pod-template-hash` | |
+| Change the image | edit YAML + `kubectl apply -f` | `kubectl argo rollouts set image <name> <container>=<image> -n <ns>` |
+| Continue / go back to stable | | `kubectl argo rollouts promote <name> -n <ns>` / `abort <name> -n <ns>` |
+| Web dashboard | | `kubectl argo rollouts dashboard` → <http://localhost:3100> |
+
+Example (the plugin adds `STATUS`, `STEP` and `SET-WEIGHT`, which tell you how far a release has gone):
+
+```
+$ kubectl get ro -A
+NAMESPACE      NAME            DESIRED   CURRENT   UP-TO-DATE   AVAILABLE   AGE
+rollouts-lab   rollouts-demo   5         5         5            5           17m
+
+$ kubectl argo rollouts list rollouts -A
+NAMESPACE     NAME           STRATEGY   STATUS   STEP  SET-WEIGHT  READY  DESIRED  UP-TO-DATE  AVAILABLE
+rollouts-lab  rollouts-demo  Canary     Healthy  4/4   100         5/5    5        5           5
+```
+
+### UIs
+
+```bash
+kubectl -n argo port-forward svc/argo-server 2746:2746   # Workflows UI: https://localhost:2746
+kubectl argo rollouts dashboard                          # Rollouts UI:  http://localhost:3100
+```
+
+These commands work the same on any cluster that runs Argo (for example a
+load-testing or CI platform built on Argo Workflows). Only the namespace and
+`--context` change.
 
 ## Cleanup
 
